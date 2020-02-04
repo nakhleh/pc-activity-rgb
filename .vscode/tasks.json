@@ -12,13 +12,14 @@
                      "-LC:\\SDKs\\iCue\\redist\\x64",
                      "-l'CUESDK.x64_2017'",
                      "-IC:\\SDKs\\cuda10\\include",
-                     "-LC:\\SDKs\\cuda10\\lib\\x64",
+                     //"-LC:\\SDKs\\cuda10\\lib\\x64",
+                     "-LC:\\Program Files\\NVIDIA Corporation\\NVSMI",
                      "-lnvml",
                      "-o", "pc-activity-rgb",
                      "main.cpp"],
         },
         {
-            "label": "copy dlls",
+            "label": "copy dll 1",
             "type": "shell",
             "command": "cp",
             "args": [
@@ -27,10 +28,19 @@
             ]
         },
         {
+            "label": "copy dll 2",
+            "type": "shell",
+            "command": "cp",
+            "args": [
+                "C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvml.dll",
+                "."
+            ]
+        },
+        {
             "label": "build",
             "type": "shell",
             "command": "echo Building application...",
-            "dependsOn": ["build application", "copy dlls"],
+            "dependsOn": ["copy dll 1", "copy dll 2", "build application"],
             "group": {
                 "kind": "build",
                 "isDefault": true

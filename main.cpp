@@ -76,6 +76,13 @@ const char* toString(CorsairError error)
 	}
 }
 
+void init_nvml() {
+		auto rc = nvmlInit();
+	if (rc != NVML_SUCCESS) {
+		cout << "Initializing NVML library failed: " << nvmlErrorString(rc) << endl;
+	}
+}
+
 void init_icue() {
     CorsairPerformProtocolHandshake();
 	if (const auto error = CorsairGetLastError()) {
@@ -207,59 +214,55 @@ int get_cpu_load() {
 //     https://software.intel.com/en-us/forums/graphics-profiling-debugging-and-analysis/topic/277859  
 //     https://docs.nvidia.com/deploy/pdf/NVML_API_Reference_Guide.pdf
 //
-/*
+
 static int get_gpu_load() {
-	nvmlUnit_t *unit;
-	auto rc = nvmlInit();
-	if (rc != NVML_SUCCESS) {
-		cout << "Initializing NVML library failed: " << rc << endl;
+	unsigned int deviceCount;
+	nvmlReturn_t rc;
+	if (NVML_SUCCESS != nvmlDeviceGetCount(&deviceCount)) {
+		cout << "Get device count failed: " << nvmlErrorString(rc) << endl;
 		return 1;
 	}
-	rc = nvmlUnitGetHandleByIndex(0, unit);
-	if (rc != NVML_SUCCESS) {
-		cout << "Get GPU handle failed: " << rc << endl;
+	cout << "Found " << deviceCount << " GPU Units" << endl;
+	if (deviceCount != 1) {
+		cout << "Program only supports 1 device, but " << deviceCount << " were found" << endl;
 		return 2;
 	}
-	unsigned int *deviceCount;
-	nvmlDevice_t *devices;
-	rc = nvmlUnitGetDevices(*unit, deviceCount, devices);
-	if (rc != NVML_SUCCESS) {
-		cout << "Get devices from unit failed: " << rc << endl;
+	nvmlDevice_t device;
+	if (NVML_SUCCESS != nvmlDeviceGetHandleByIndex(0, &device)) {
+		cout << "Get devices from unit failed: " << nvmlErrorString(rc) << endl;
 		return 3;
 	}
-	if (*deviceCount != 1) {
-		cout << "Expected 1 GPU device, got: " << deviceCount << endl;
+	nvmlUtilization_t util;
+	if (NVML_SUCCESS != nvmlDeviceGetUtilizationRates(device, &util)) {
+		cout << "Get GPU utilization failed: " << nvmlErrorString(rc) << endl;
 		return 4;
-	}	
-	nvmlUtilization_t *util;
-	rc = nvmlDeviceGetUtilizationRates(devices[0], util);
-	if (rc != NVML_SUCCESS) {
-		cout << "Get GPU utilization failed: " << rc << endl;
-		return 5;
 	}
 
-	return static_cast<int>(util->gpu);
+	return static_cast<int>(util.gpu);
 } 
-*/
 
 int main() {
     vector<string> msg {"Hello", "C++", "World", "from", "VS Code"};
 
-
     cout << "Connecting to iCue..." << endl;
     init_icue();
+	cout << "Initializing NVidia nvml..." << endl;
+	init_nvml();
+	cout << endl;
 
 	// print_device_info();
 
 	while(true) {
 		auto memPct = get_memory_usage();
 		auto cpuPct = get_cpu_load();
+		auto gpuPct = get_gpu_load();
 		cout << "Memory usage is at " << memPct << "%" << endl;
 		cout << "CPU load is at " << cpuPct << "%" << endl;
-
+		cout << "GPU load is at " << gpuPct << "%" << endl;
 	 	cout << "Updating colors..." << endl;
 	 	LedMap ledMap = get_led_arrays();
 		load_device_colors("cpu", 0, cpuPct, ledMap);
+		load_device_colors("gpu", 0, gpuPct, ledMap);
 
 	 	load_device_colors("ram", 0,  min(memPct*4, 100), ledMap);
 	 	load_device_colors("ram", 1,  min((memPct-25)*4, 100), ledMap);
