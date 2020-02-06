@@ -131,20 +131,35 @@ LedMap get_led_arrays()
 	return ledMap;
 }
 
-void load_device_colors(string devName, int devIdx, int percentFull, LedMap &ledMap) {
+// Load colors to show the binary representation of number
+void load_device_colors_binary(string devName, int devIdx, unsigned int number, LedMap &ledMap) {
+	DevInfoType dev = devInfo.at(devName)[devIdx];
+	if (number >= pow(2, dev.ledCount)) {
+		cout << "Can't represent " << number << " with only " << dev.ledCount << " LEDs!";
+		return;
+	}
+	for (int i = 0; i < dev.ledCount; ++i) {
+		if ((number >> (dev.ledCount - 1 - i)) & 0x00000001) {   // Isolate bit and test if it should be lit
+			ledMap[dev.deviceIndex][dev.ledStartIndex + i].r = 0;
+			ledMap[dev.deviceIndex][dev.ledStartIndex + i].g = 128;
+			ledMap[dev.deviceIndex][dev.ledStartIndex + i].b = 0;
+		}
+	}
+}
+
+void load_device_colors_activity(string devName, int devIdx, int percentFull, LedMap &ledMap) {
 	DevInfoType dev = devInfo.at(devName)[devIdx];
 	int threshold = percentFull * dev.ledCount / 100;
 	for (int i = dev.ledStartIndex; i < dev.ledStartIndex + dev.ledCount; ++i) {
 		if (i - dev.ledStartIndex <= threshold) {
-		//	cout << "Setting LED " << i << " to RED" << endl;
-			ledMap[dev.deviceIndex][i].r = 255;
+			                               // RAM is really bright, dim it down
+			ledMap[dev.deviceIndex][i].r = (devName.compare("ram") == 0 ? 32 : 255);
 			ledMap[dev.deviceIndex][i].g = 0;
 			ledMap[dev.deviceIndex][i].b = 0;
 		}
 		else {
-		//	cout << "Setting LED " << i << " to green" << endl;
 			ledMap[dev.deviceIndex][i].r = 0;
-			ledMap[dev.deviceIndex][i].g = 255;
+			ledMap[dev.deviceIndex][i].g = (devName.compare("ram") == 0 ? 32 : 255);
 			ledMap[dev.deviceIndex][i].b = 0;
 		}
 	}
@@ -222,7 +237,7 @@ static int get_gpu_load() {
 		cout << "Get device count failed: " << nvmlErrorString(rc) << endl;
 		return 1;
 	}
-	cout << "Found " << deviceCount << " GPU Units" << endl;
+	//cout << "Found " << deviceCount << " GPU Units" << endl;
 	if (deviceCount != 1) {
 		cout << "Program only supports 1 device, but " << deviceCount << " were found" << endl;
 		return 2;
@@ -253,6 +268,8 @@ int main() {
 	// print_device_info();
 
 	while(true) {
+		time_t curTime = time(NULL);
+		tm *time = localtime(&curTime);
 		auto memPct = get_memory_usage();
 		auto cpuPct = get_cpu_load();
 		auto gpuPct = get_gpu_load();
@@ -261,13 +278,18 @@ int main() {
 		cout << "GPU load is at " << gpuPct << "%" << endl;
 	 	cout << "Updating colors..." << endl;
 	 	LedMap ledMap = get_led_arrays();
-		load_device_colors("cpu", 0, cpuPct, ledMap);
-		load_device_colors("gpu", 0, gpuPct, ledMap);
+		load_device_colors_activity("cpu", 0, cpuPct, ledMap);
+		load_device_colors_activity("gpu", 0, gpuPct, ledMap);
 
-	 	load_device_colors("ram", 0,  min(memPct*4, 100), ledMap);
-	 	load_device_colors("ram", 1,  min((memPct-25)*4, 100), ledMap);
-	 	load_device_colors("ram", 2,  min((memPct-50)*4, 100), ledMap);
-	 	load_device_colors("ram", 3,  min((memPct-75)*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 0,  min(memPct*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 1,  min((memPct-25)*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 2,  min((memPct-50)*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 3,  min((memPct-75)*4, 100), ledMap);
+
+		// Show time on fans, hour (top), first digit of minute, second digit (bottom)
+		load_device_colors_binary("fan", 0, time->tm_hour, ledMap);
+		load_device_colors_binary("fan", 1, time->tm_min / 10, ledMap);
+		load_device_colors_binary("fan", 2, time->tm_min % 10, ledMap);
 
 	 	set_colors(ledMap);
 		std::this_thread::sleep_for(std::chrono::seconds(5));
