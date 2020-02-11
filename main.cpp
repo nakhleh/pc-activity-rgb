@@ -1,5 +1,6 @@
 #include <array>
 #include <iostream>
+#include <iomanip>
 #include <math.h>
 #include <unordered_map>
 #include <string>
@@ -184,8 +185,8 @@ int get_memory_usage() {
 	GlobalMemoryStatusEx(&memInfo);
 	DWORDLONG totalVirtualMem = memInfo.ullTotalPageFile;
 	DWORDLONG usedVirtualMem = memInfo.ullTotalPageFile - memInfo.ullAvailPageFile;
-	cout << "usedVirtualMem = " << usedVirtualMem / (1024 * 1024 * 1024) << " GiB" << endl;
-	cout << "totalVirtualMem = " << totalVirtualMem / (1024 * 1024 * 1024) << " GiB" << endl;
+//	cout << "usedVirtualMem = " << usedVirtualMem / (1024 * 1024 * 1024) << " GiB" << endl;
+//	cout << "totalVirtualMem = " << totalVirtualMem / (1024 * 1024 * 1024) << " GiB" << endl;
 	return static_cast<int> (usedVirtualMem * 100 / totalVirtualMem);
 }
 
@@ -273,10 +274,12 @@ int main() {
 		auto memPct = get_memory_usage();
 		auto cpuPct = get_cpu_load();
 		auto gpuPct = get_gpu_load();
-		cout << "Memory usage is at " << memPct << "%" << endl;
-		cout << "CPU load is at " << cpuPct << "%" << endl;
-		cout << "GPU load is at " << gpuPct << "%" << endl;
-	 	cout << "Updating colors..." << endl;
+		cout << "Time: " << setw(2) << setfill('0') << time->tm_hour 
+		                 << ":" << setw(2) << setfill('0') << time->tm_min
+						 << ":" << setw(2) << setfill('0') << time->tm_sec;
+		cout << ", Memory: " << memPct << "%";
+		cout << ", CPU:" << cpuPct << "%";
+		cout << ", GPU:" << gpuPct << "%" << endl;
 	 	LedMap ledMap = get_led_arrays();
 		load_device_colors_activity("cpu", 0, cpuPct, ledMap);
 		load_device_colors_activity("gpu", 0, gpuPct, ledMap);
@@ -287,7 +290,7 @@ int main() {
 	 	load_device_colors_activity("ram", 3,  min((memPct-75)*4, 100), ledMap);
 
 		// Show time on fans, hour (top), first digit of minute, second digit (bottom)
-		load_device_colors_binary("fan", 0, time->tm_hour, ledMap);
+		load_device_colors_binary("fan", 0, time->tm_hour % 12, ledMap);
 		load_device_colors_binary("fan", 1, time->tm_min / 10, ledMap);
 		load_device_colors_binary("fan", 2, time->tm_min % 10, ledMap);
 
