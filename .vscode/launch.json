@@ -15,7 +15,7 @@
             "environment": [],
             "externalConsole": true,
             "MIMode": "gdb",
-            "miDebuggerPath": "${home}\\scoop\\apps\\gcc\\current\\bin\\gdb.exe",
+            "miDebuggerPath": "${env:home}/scoop/apps/gcc/current/bin/gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

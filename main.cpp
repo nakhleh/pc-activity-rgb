@@ -24,7 +24,7 @@ using namespace std;
 using LedMap = unordered_map<int, vector<CorsairLedColor>>;
 
 struct DevInfoType {
-	int deviceIndex;
+	string deviceName;
 	int ledCount;
 	int ledStartIndex;
 };
@@ -32,24 +32,21 @@ struct DevInfoType {
 // Maps logical devices to physical iCUE indicies
 static const unordered_map<string, vector<DevInfoType>> devInfo = {
 	{ "gpu", {
-				{0, 16,  0}
+				{"CommanderPro", 16,  0}
 	}},
 	{ "reservoir", {
-				{0, 10, 16}
+				{"CommanderPro", 10, 16}
 	}},
 	{ "cpu", {
-				{0, 16, 26}
+				{"CommanderPro", 16, 26}
 	}},
 	{ "fan", { 
-				{0,  4, 42},
-				{0,  4, 50},
-				{0,  4, 46},
+				{"CommanderPro", 4, 42},
+				{"CommanderPro", 4, 50},
+				{"CommanderPro", 4, 46}
 	}},
 	{ "ram", {
-				{1, 10, 0},
-				{2, 10, 0},
-				{3, 10, 0},
-				{4, 10, 0}
+				{"MemoryModule", 10, 0}
 	}}
 };
 
@@ -116,6 +113,38 @@ void print_device_info() {
     cout << endl;
 }
 
+// Apparently the devices don't always have the same mapping (upon driver updates?), so figure out which is the commander
+// RAM sticks always seem to be in the correct order, though, so assume that
+std::unordered_map<string, int> get_device_mapping() {
+   	auto deviceMap = std::unordered_map<string, int>();
+	int ramNumber = 1;
+    int size = CorsairGetDeviceCount();
+    cout << "Found " << size << " devices" << endl;
+	for (int deviceIdx = 0; deviceIdx < size; ++deviceIdx) {
+        auto deviceInfo = CorsairGetDeviceInfo(deviceIdx);
+		std::string deviceName(DeviceTypeStrings[deviceInfo->type]);
+        cout << "  Device ID " << deviceIdx << " is a " << deviceName
+             << " with " << deviceInfo->ledsCount << " LEDs" << endl;
+		if (deviceName.compare("CommanderPro") == 0) {
+			deviceMap.insert({DeviceTypeStrings[deviceInfo->type], deviceIdx});
+		}
+		else if (deviceName.compare("MemoryModule") == 0) {
+			if (deviceMap.count("MemoryModule") == 0) {
+				deviceMap.insert({"MemoryModule", deviceIdx});
+				deviceMap.insert({"MemoryModuleCount", 1});
+			}
+			else {
+				deviceMap.insert({"MemoryModuleCount", deviceMap["MemoryModuleCount"] + 1});
+			}
+		}
+		else {
+			cout << "Ignoring unrecognized device string: " << deviceName << endl;
+		}
+	}
+    cout << endl;
+	return deviceMap;
+}
+
 LedMap get_led_arrays()
 {
 	LedMap ledMap;
@@ -133,35 +162,35 @@ LedMap get_led_arrays()
 }
 
 // Load colors to show the binary representation of number
-void load_device_colors_binary(string devName, int devIdx, unsigned int number, LedMap &ledMap) {
-	DevInfoType dev = devInfo.at(devName)[devIdx];
+void load_device_colors_binary(string devName, int devIndex, int controllerIndex, unsigned int number, LedMap &ledMap) {
+	DevInfoType dev = devInfo.at(devName)[devIndex];
 	if (number >= pow(2, dev.ledCount)) {
 		cout << "Can't represent " << number << " with only " << dev.ledCount << " LEDs!";
 		return;
 	}
 	for (int i = 0; i < dev.ledCount; ++i) {
 		if ((number >> (dev.ledCount - 1 - i)) & 0x00000001) {   // Isolate bit and test if it should be lit
-			ledMap[dev.deviceIndex][dev.ledStartIndex + i].r = 0;
-			ledMap[dev.deviceIndex][dev.ledStartIndex + i].g = 128;
-			ledMap[dev.deviceIndex][dev.ledStartIndex + i].b = 0;
+			ledMap[controllerIndex][dev.ledStartIndex + i].r = 0;
+			ledMap[controllerIndex][dev.ledStartIndex + i].g = 128;
+			ledMap[controllerIndex][dev.ledStartIndex + i].b = 0;
 		}
 	}
 }
 
-void load_device_colors_activity(string devName, int devIdx, int percentFull, LedMap &ledMap) {
-	DevInfoType dev = devInfo.at(devName)[devIdx];
+void load_device_colors_activity(string devName, int devIndex, int controllerIndex, int percentFull, LedMap &ledMap) {
+	DevInfoType dev = devInfo.at(devName)[devIndex];
 	int threshold = percentFull * dev.ledCount / 100;
 	for (int i = dev.ledStartIndex; i < dev.ledStartIndex + dev.ledCount; ++i) {
 		if (i - dev.ledStartIndex <= threshold) {
 			                               // RAM is really bright, dim it down
-			ledMap[dev.deviceIndex][i].r = (devName.compare("ram") == 0 ? 32 : 255);
-			ledMap[dev.deviceIndex][i].g = 0;
-			ledMap[dev.deviceIndex][i].b = 0;
+			ledMap[controllerIndex][i].r = (devName.compare("ram") == 0 ? 32 : 255);
+			ledMap[controllerIndex][i].g = 0;
+			ledMap[controllerIndex][i].b = 0;
 		}
 		else {
-			ledMap[dev.deviceIndex][i].r = 0;
-			ledMap[dev.deviceIndex][i].g = (devName.compare("ram") == 0 ? 32 : 255);
-			ledMap[dev.deviceIndex][i].b = 0;
+			ledMap[controllerIndex][i].r = 0;
+			ledMap[controllerIndex][i].g = (devName.compare("ram") == 0 ? 32 : 255);
+			ledMap[controllerIndex][i].b = 0;
 		}
 	}
 }
@@ -267,6 +296,7 @@ int main() {
 	cout << endl;
 
 	// print_device_info();
+	auto deviceMap = get_device_mapping();
 
 	while(true) {
 		time_t curTime = time(NULL);
@@ -281,18 +311,19 @@ int main() {
 		cout << ", CPU:" << cpuPct << "%";
 		cout << ", GPU:" << gpuPct << "%" << endl;
 	 	LedMap ledMap = get_led_arrays();
-		load_device_colors_activity("cpu", 0, cpuPct, ledMap);
-		load_device_colors_activity("gpu", 0, gpuPct, ledMap);
+		load_device_colors_activity("cpu", 0, deviceMap["CommanderPro"], cpuPct, ledMap);
+		load_device_colors_activity("gpu", 0, deviceMap["CommanderPro"], gpuPct, ledMap);
 
-	 	load_device_colors_activity("ram", 0,  min(memPct*4, 100), ledMap);
-	 	load_device_colors_activity("ram", 1,  min((memPct-25)*4, 100), ledMap);
-	 	load_device_colors_activity("ram", 2,  min((memPct-50)*4, 100), ledMap);
-	 	load_device_colors_activity("ram", 3,  min((memPct-75)*4, 100), ledMap);
+		// Assumes 4 sticks of RAM, exercise left to generalize
+	 	load_device_colors_activity("ram", 0, deviceMap["MemoryModule"],      min(memPct*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 0, deviceMap["MemoryModule"] + 1,  min((memPct-25)*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 0, deviceMap["MemoryModule"] + 2,  min((memPct-50)*4, 100), ledMap);
+	 	load_device_colors_activity("ram", 0, deviceMap["MemoryModule"] + 3,  min((memPct-75)*4, 100), ledMap);
 
 		// Show time on fans, hour (top), first digit of minute, second digit (bottom)
-		load_device_colors_binary("fan", 0, time->tm_hour % 12, ledMap);
-		load_device_colors_binary("fan", 1, time->tm_min / 10, ledMap);
-		load_device_colors_binary("fan", 2, time->tm_min % 10, ledMap);
+		load_device_colors_binary("fan", 0, deviceMap["CommanderPro"], time->tm_hour % 12, ledMap);
+		load_device_colors_binary("fan", 1, deviceMap["CommanderPro"], time->tm_min / 10, ledMap);
+		load_device_colors_binary("fan", 2, deviceMap["CommanderPro"], time->tm_min % 10, ledMap);
 
 	 	set_colors(ledMap);
 		std::this_thread::sleep_for(std::chrono::seconds(5));
