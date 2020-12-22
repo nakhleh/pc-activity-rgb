@@ -8,14 +8,13 @@
             "type": "shell",
             "command": "g++",
             "args": ["-g", 
-                     "-IC:\\SDKs\\iCue\\include",
-                     "-LC:\\SDKs\\iCue\\redist\\x64",
-                     "-l'CUESDK.x64_2017'",
-                     "-IC:\\SDKs\\cuda10\\include",
-                     //"-LC:\\SDKs\\cuda10\\lib\\x64",
+                     //"-IC:\\SDKs\\iCue\\include",
+                     //"-LC:\\SDKs\\iCue\\redist\\x64",
+                     //"-l'CUESDK.x64_2017'",
                      "-LC:\\Program Files\\NVIDIA Corporation\\NVSMI",
                      "-lnvml",
                      "-o", "pc-activity-rgb",
+                     "ComputerActivity.cpp",
                      "main.cpp"],
         },
         {
@@ -40,7 +39,7 @@
             "label": "build",
             "type": "shell",
             "command": "echo Building application...",
-            "dependsOn": ["copy dll 1", "copy dll 2", "build application"],
+            "dependsOn": ["copy dll 2", "build application"],
             "group": {
                 "kind": "build",
                 "isDefault": true
