@@ -11,7 +11,9 @@
                      //"-IC:\\SDKs\\iCue\\include",
                      //"-LC:\\SDKs\\iCue\\redist\\x64",
                      //"-l'CUESDK.x64_2017'",
-                     "-LC:\\Program Files\\NVIDIA Corporation\\NVSMI",
+                     // Updated NVML driver location for Driver update 460.89
+                     //"-LC:\\Program Files\\NVIDIA Corporation\\NVSMI",
+                     "-LC:\\Windows\\System32\\DriverStore\\FileRepository\\nvmii.inf_amd64_2ff4126dbcc37895",
                      "-lnvml",
                      "-o", "pc-activity-rgb",
                      "ComputerActivity.cpp",
@@ -31,7 +33,8 @@
             "type": "shell",
             "command": "cp",
             "args": [
-                "C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvml.dll",
+                //"C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvml.dll",
+                "C:\\Windows\\System32\\DriverStore\\FileRepository\\nvmii.inf_amd64_2ff4126dbcc37895",
                 "."
             ]
         },
