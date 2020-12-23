@@ -120,7 +120,8 @@ LedMap RgbLighting::get_led_arrays()
 }
 
 // Load colors to show the binary representation of number
-void RgbLighting::load_device_colors_binary(string devName, int devIndex, int controllerIndex, unsigned int number, LedMap &ledMap) {
+void RgbLighting::load_device_colors_binary(string devName, int devIndex, int controllerIndex, unsigned int number,
+                                            LedMap &ledMap, Color one, Color zero) {
 	DevInfoType dev = devInfo.at(devName)[devIndex];
 	if (number >= pow(2, dev.ledCount)) {
 		cout << "Can't represent " << number << " with only " << dev.ledCount << " LEDs!";
@@ -128,28 +129,42 @@ void RgbLighting::load_device_colors_binary(string devName, int devIndex, int co
 	}
 	for (int i = 0; i < dev.ledCount; ++i) {
 		if ((number >> (dev.ledCount - 1 - i)) & 0x00000001) {   // Isolate bit and test if it should be lit
-			ledMap[controllerIndex][dev.ledStartIndex + i].r = 0;
-			ledMap[controllerIndex][dev.ledStartIndex + i].g = 128;
-			ledMap[controllerIndex][dev.ledStartIndex + i].b = 0;
+			ledMap[controllerIndex][dev.ledStartIndex + i].r = one.r;
+			ledMap[controllerIndex][dev.ledStartIndex + i].g = one.g;
+			ledMap[controllerIndex][dev.ledStartIndex + i].b = one.b;
+		}
+		else {
+			ledMap[controllerIndex][dev.ledStartIndex + i].r = zero.r;
+			ledMap[controllerIndex][dev.ledStartIndex + i].g = zero.g;
+			ledMap[controllerIndex][dev.ledStartIndex + i].b = zero.b;
 		}
 	}
 }
 
-void RgbLighting::load_device_colors_activity(string devName, int devIndex, int controllerIndex, int percentFull, LedMap &ledMap) {
+void RgbLighting::load_device_colors_activity(string devName, int devIndex, int controllerIndex, int percentFull,
+                                              LedMap &ledMap, Color base, Color active) {
 	DevInfoType dev = devInfo.at(devName)[devIndex];
 	int threshold = percentFull * dev.ledCount / 100;
 	for (int i = dev.ledStartIndex; i < dev.ledStartIndex + dev.ledCount; ++i) {
 		if (i - dev.ledStartIndex <= threshold) {
-			                               // RAM is really bright, dim it down
-			ledMap[controllerIndex][i].r = (devName.compare("ram") == 0 ? 32 : 255);
-			ledMap[controllerIndex][i].g = 0;
-			ledMap[controllerIndex][i].b = 0;
+			ledMap[controllerIndex][i].r = active.r;
+			ledMap[controllerIndex][i].g = active.g;
+			ledMap[controllerIndex][i].b = active.b;
 		}
 		else {
-			ledMap[controllerIndex][i].r = 0;
-			ledMap[controllerIndex][i].g = (devName.compare("ram") == 0 ? 32 : 255);
-			ledMap[controllerIndex][i].b = 0;
+			ledMap[controllerIndex][i].r = base.r;
+			ledMap[controllerIndex][i].g = base.g;
+			ledMap[controllerIndex][i].b = base.b;
 		}
+	}
+}
+
+void RgbLighting::load_device_colors_static(string devName, int devIndex, int controllerIndex, LedMap &ledMap, Color base) {
+	DevInfoType dev = devInfo.at(devName)[devIndex];
+	for (int i = dev.ledStartIndex; i < dev.ledStartIndex + dev.ledCount; ++i) {
+		ledMap[controllerIndex][i].r = base.r;
+		ledMap[controllerIndex][i].g = base.g;
+		ledMap[controllerIndex][i].b = base.b;
 	}
 }
 
