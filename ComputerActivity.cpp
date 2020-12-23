@@ -1,12 +1,6 @@
-#include <array>
 #include <iostream>
 #include <iomanip>
 #include <math.h>
-#include <unordered_map>
-#include <string>
-#include <thread>
-#include <unordered_set>
-#include <vector>
 
 extern "C" {
 	#include "nvml.h"
@@ -18,10 +12,6 @@ using namespace std;
 
 ComputerActivity::ComputerActivity() {
 	cout << "Initializing NVML..." << endl;
-	this->init_nvml();
-}
-
-void ComputerActivity::init_nvml() {
 	auto rc = nvmlInit();
 	if (rc != NVML_SUCCESS) {
 		cout << "Initializing NVML library failed: " << nvmlErrorString(rc) << endl;
